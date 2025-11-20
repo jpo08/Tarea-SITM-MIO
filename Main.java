@@ -1,18 +1,20 @@
-import java.io.IOException;
+import java.util.*;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
-        String linesFile = "lines.csv";
-        String stopsFile = "stops.csv";
-        String lineStopsFile = "linestops.csv";
+        Map<Integer, Line> lines = GraphBuilder.loadLines("lines-241.csv");
+        Map<Integer, Stop> stops = GraphBuilder.loadStops("stops-241.csv");
+        List<LineStop> lineStops = GraphBuilder.loadLineStops("linestops-241.csv");
 
-        GraphBuilder builder = new GraphBuilder();
+        Map<String, List<Arc>> arcs = GraphBuilder.buildArcs(lineStops);
 
-        builder.loadStops(stopsFile);
-        builder.loadRoutes(linesFile);
-        builder.loadLineStops(lineStopsFile);
+        System.out.println("Generando mapa global del SITM-MIO...");
 
-        builder.buildGraphs();
+        SystemMapRenderer.drawFullSystem(
+            "SITM_MIO_FULL_MAP.jpg",
+            arcs,
+            stops
+        );
     }
 }

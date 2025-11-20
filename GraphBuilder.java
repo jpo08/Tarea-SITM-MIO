@@ -1,107 +1,65 @@
-import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class GraphBuilder {
 
-    Map<Integer, Stop> stops = new HashMap<>();
-    Map<Integer, Route> routes = new HashMap<>();
-    List<LineStop> lineStops = new ArrayList<>();
-
-
-    // Cargar stops.csv
-    public void loadStops(String file) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        br.readLine();
-        String line;
-
-        while ((line = br.readLine()) != null) {
-            String[] parts = line.replace("\"", "").split(",");
-
-            int stopId = Integer.parseInt(parts[0]);
-            String name = parts[2];
-
-            stops.put(stopId, new Stop(stopId, name));
+    public static Map<Integer, Line> loadLines(String path) throws Exception {
+        Map<Integer, Line> lines = new HashMap<>();
+        for (String[] r : CSVReader.read(path)) {
+            int id = Integer.parseInt(r[0]);
+            String shortName = r[2];
+            String desc = r[3];
+            lines.put(id, new Line(id, shortName, desc));
         }
-        br.close();
+        return lines;
     }
 
-    // Cargar lines.csv
-    public void loadRoutes(String file) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        br.readLine();
-        String line;
-
-        while ((line = br.readLine()) != null) {
-            String[] parts = line.replace("\"", "").split(",");
-
-            int lineId = Integer.parseInt(parts[0]);
-            String shortName = parts[2];
-
-            routes.put(lineId, new Route(lineId, shortName));
+    public static Map<Integer, Stop> loadStops(String path) throws Exception {
+        Map<Integer, Stop> stops = new HashMap<>();
+        for (String[] r : CSVReader.read(path)) {
+            int id = Integer.parseInt(r[0]);
+            String shortName = r[2];
+            double lon = Double.parseDouble(r[6]);
+            double lat = Double.parseDouble(r[7]);
+            stops.put(id, new Stop(id, shortName, lat, lon));
         }
-        br.close();
+        return stops;
     }
 
-    // Cargar linestops.csv
-    public void loadLineStops(String file) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        br.readLine();
-        String line;
+    public static List<LineStop> loadLineStops(String path) throws Exception {
+        List<LineStop> lst = new ArrayList<>();
+        for (String[] r : CSVReader.read(path)) {
+            int seq = Integer.parseInt(r[1]);
+            int orient = Integer.parseInt(r[2]);
+            int lineId = Integer.parseInt(r[3]);
+            int stopId = Integer.parseInt(r[4]);
+            int variant = Integer.parseInt(r[6]);
 
-        while ((line = br.readLine()) != null) {
-            String[] p = line.replace("\"", "").split(",");
-
-            int seq = Integer.parseInt(p[1]);
-            int orientation = Integer.parseInt(p[2]);
-            int lineId = Integer.parseInt(p[3]);
-            int stopId = Integer.parseInt(p[4]);
-
-            lineStops.add(new LineStop(lineId, stopId, seq, orientation));
+            lst.add(new LineStop(lineId, stopId, seq, orient, variant));
         }
-        br.close();
+        return lst;
     }
 
-    // Construir y mostrar grafos
-    public void buildGraphs() {
+    public static Map<String, List<Arc>> buildArcs(List<LineStop> list) {
 
-        // agrupar por ruta
-        Map<Integer, List<LineStop>> grouped =
-                lineStops.stream().collect(Collectors.groupingBy(ls -> ls.lineId));
+        Map<String, List<Arc>> arcsByRoute = new HashMap<>();
+        Map<String, List<LineStop>> grouped = new HashMap<>();
 
-        for (Integer lineId : grouped.keySet()) {
-
-            Route route = routes.get(lineId);
-            System.out.println("\n======================================");
-            System.out.println("Ruta " + route.shortName + " (ID=" + lineId + ")");
-            System.out.println("======================================");
-
-            List<LineStop> list = grouped.get(lineId);
-
-            // IDA (orientation=0)
-            printDirection(list, 0);
-
-            // REGRESO (orientation=1)
-            printDirection(list, 1);
+        for (LineStop ls : list) {
+            String key = ls.lineId + "-" + ls.orientation + "-" + ls.variant;
+            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(ls);
         }
-    }
 
-    private void printDirection(List<LineStop> list, int orientation) {
+        for (String key : grouped.keySet()) {
+            List<LineStop> stops = grouped.get(key);
+            stops.sort(Comparator.comparingInt(s -> s.sequence));
 
-        List<LineStop> seq = list.stream()
-                .filter(ls -> ls.orientation == orientation)
-                .sorted(Comparator.comparingInt(ls -> ls.sequence))
-                .collect(Collectors.toList());
-
-        String title = orientation == 0 ? "IDA" : "REGRESO";
-
-        System.out.println("\n  --- " + title + " ---");
-
-        for (int i = 0; i < seq.size() - 1; i++) {
-            Stop a = stops.get(seq.get(i).stopId);
-            Stop b = stops.get(seq.get(i + 1).stopId);
-
-            System.out.println("     " + a.stopId + " -> " + b.stopId);
+            List<Arc> arcs = new ArrayList<>();
+            for (int i = 0; i < stops.size() - 1; i++) {
+                arcs.add(new Arc(stops.get(i).stopId, stops.get(i+1).stopId));
+            }
+            arcsByRoute.put(key, arcs);
         }
+
+        return arcsByRoute;
     }
 }
