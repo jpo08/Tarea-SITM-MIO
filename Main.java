@@ -29,7 +29,7 @@ public class Main {
                 Stop to = stops.get(a.to);
 
                 System.out.println(
-                    a.from + " (" + from.shortName + ") → " +
+                    a.from + " (" + from.shortName + ") -> " +
                     a.to + " (" + to.shortName + ")"
                 );
             }
